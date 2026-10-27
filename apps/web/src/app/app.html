@@ -1,0 +1,303 @@
+<main class="auth-shell">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Account home">
+      <span class="brand-mark" aria-hidden="true">a</span>
+      <span>Web</span>
+    </a>
+    <button
+      class="language-switch"
+      type="button"
+      (click)="setLanguage(language() === 'en' ? 'th' : 'en')"
+    >
+      {{ copy().language }}
+    </button>
+  </header>
+
+  @if (isLoading()) {
+    <section class="loading-state" aria-live="polite">{{ copy().loading }}</section>
+  } @else {
+    <section class="auth-layout">
+      <div class="intro">
+        <div class="intro-mark" aria-hidden="true">a</div>
+        <h1>{{ auth.user() ? copy().accountTitle : titleForMode() }}</h1>
+        <p>
+          {{ auth.user() ? copy().accountSubtitle + ' ' + auth.user()?.email : subtitleForMode() }}
+        </p>
+        <div class="trust-note">
+          <span class="trust-dot" aria-hidden="true"></span>
+          <span>{{
+            language() === 'th'
+              ? 'สำหรับสมาชิกที่ได้รับอนุญาตเท่านั้น'
+              : 'Secure access for approved members'
+          }}</span>
+        </div>
+      </div>
+
+      <section
+        class="form-panel"
+        [attr.aria-label]="language() === 'th' ? 'การเข้าถึงบัญชี' : 'Account access'"
+      >
+        @if (auth.user() && mode() === 'login') {
+          <div class="account-view">
+            <h2>{{ auth.user()?.email }}</h2>
+            <p class="account-detail">
+              {{ language() === 'th' ? 'บัญชีของคุณเปิดใช้งานอยู่' : 'Your account is active.' }}
+            </p>
+
+            <form [formGroup]="accountForm" (ngSubmit)="changeEmail()" class="account-form">
+              <label for="email">{{ copy().changeEmail }}</label>
+              <input
+                id="email"
+                type="email"
+                autocomplete="email"
+                [placeholder]="copy().emailPlaceholder"
+                formControlName="email"
+              />
+              @if (accountForm.controls.email.touched && accountForm.controls.email.invalid) {
+                <span class="field-error">{{
+                  language() === 'th' ? 'กรอกอีเมลให้ถูกต้อง' : 'Enter a valid email address.'
+                }}</span>
+              }
+              <button class="button button-secondary" type="submit" [disabled]="isSubmitting()">
+                {{ copy().requestEmailChange }}
+              </button>
+            </form>
+
+            <div class="account-actions">
+              <button
+                class="text-action"
+                type="button"
+                [disabled]="isSubmitting()"
+                (click)="logoutOtherSessions()"
+              >
+                {{ copy().logoutOtherSessions }}
+              </button>
+              <button
+                class="text-action"
+                type="button"
+                [disabled]="isSubmitting()"
+                (click)="logout()"
+              >
+                {{ copy().signOut }}
+              </button>
+            </div>
+          </div>
+          @if (auth.user()?.role === 'ADMIN') {
+            <section class="admin-section" [attr.aria-label]="copy().adminTitle">
+              <h2>{{ copy().adminTitle }}</h2>
+              <form [formGroup]="adminForm" (ngSubmit)="inviteUser()" class="admin-invite">
+                <label for="invite-email">{{ copy().inviteMember }}</label>
+                <input
+                  id="invite-email"
+                  type="email"
+                  autocomplete="email"
+                  [placeholder]="copy().emailPlaceholder"
+                  formControlName="email"
+                />
+                @if (adminForm.controls.email.touched && adminForm.controls.email.invalid) {
+                  <span class="field-error">
+                    {{
+                      language() === 'th' ? 'กรอกอีเมลให้ถูกต้อง' : 'Enter a valid email address.'
+                    }}
+                  </span>
+                }
+                <button class="button button-primary" type="submit" [disabled]="isSubmitting()">
+                  {{ copy().sendInvitation }}
+                </button>
+              </form>
+
+              <ul class="admin-users" aria-label="Member accounts">
+                @for (user of auth.adminUsers(); track user.id) {
+                  <li class="admin-user">
+                    <div class="admin-user-copy">
+                      <strong>{{ user.email }}</strong>
+                      <span>
+                        @switch (user.status) {
+                          @case ('INVITED') {
+                            {{ copy().invited }}
+                          }
+                          @case ('ACTIVE') {
+                            {{ copy().active }}
+                          }
+                          @case ('DISABLED') {
+                            {{ copy().disabled }}
+                          }
+                        }
+                      </span>
+                    </div>
+                    @if (user.status === 'INVITED') {
+                      <button
+                        class="text-action"
+                        type="button"
+                        [disabled]="isSubmitting()"
+                        (click)="resendInvitation(user.id)"
+                      >
+                        {{ copy().resend }}
+                      </button>
+                    } @else if (user.id !== auth.user()?.id || user.status !== 'ACTIVE') {
+                      <button
+                        class="text-action"
+                        type="button"
+                        [disabled]="isSubmitting()"
+                        (click)="
+                          updateUserStatus(
+                            user.id,
+                            user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
+                          )
+                        "
+                      >
+                        {{ user.status === 'ACTIVE' ? copy().disable : copy().enable }}
+                      </button>
+                    }
+                  </li>
+                } @empty {
+                  <li class="admin-empty">
+                    {{ language() === 'th' ? 'ยังไม่มีบัญชีสมาชิก' : 'No member accounts yet.' }}
+                  </li>
+                }
+              </ul>
+
+              <h3>{{ copy().recentAudit }}</h3>
+              <ul class="audit-events">
+                @for (event of auth.auditEvents(); track event.id) {
+                  <li>
+                    <code>{{ event.event }}</code>
+                  </li>
+                } @empty {
+                  <li class="admin-empty">
+                    {{ language() === 'th' ? 'ยังไม่มีกิจกรรม' : 'No account activity yet.' }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        } @else {
+          @if (mode() === 'confirm-email') {
+            <form [formGroup]="accountForm" (ngSubmit)="submit()" class="form-content">
+              <p class="form-note">{{ copy().confirmEmailSubtitle }}</p>
+              <button
+                class="button button-primary"
+                type="submit"
+                [disabled]="isSubmitting() || !token()"
+              >
+                {{ copy().confirmEmail }}
+              </button>
+            </form>
+          } @else {
+            <form [formGroup]="accountForm" (ngSubmit)="submit()" class="form-content">
+              @if (mode() === 'login' || mode() === 'forgot') {
+                <div class="field">
+                  <label for="email">{{ copy().email }}</label>
+                  <input
+                    id="email"
+                    type="email"
+                    autocomplete="email"
+                    [placeholder]="copy().emailPlaceholder"
+                    formControlName="email"
+                  />
+                  @if (accountForm.controls.email.touched && accountForm.controls.email.invalid) {
+                    <span class="field-error">{{
+                      language() === 'th' ? 'กรอกอีเมลให้ถูกต้อง' : 'Enter a valid email address.'
+                    }}</span>
+                  }
+                </div>
+              }
+
+              @if (mode() === 'login' || mode() === 'invite' || mode() === 'reset') {
+                <div class="field">
+                  <label for="password">{{
+                    mode() === 'login' ? copy().password : copy().password
+                  }}</label>
+                  <input
+                    id="password"
+                    type="password"
+                    [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+                    [placeholder]="copy().passwordPlaceholder"
+                    formControlName="password"
+                  />
+                  @if (mode() !== 'login') {
+                    <span class="field-hint">{{ copy().passwordHint }}</span>
+                  }
+                </div>
+              }
+
+              @if (mode() === 'invite' || mode() === 'reset') {
+                <div class="field">
+                  <label for="confirm-password">{{ copy().confirmPassword }}</label>
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    autocomplete="new-password"
+                    formControlName="confirmPassword"
+                  />
+                </div>
+              }
+
+              @if (mode() === 'forgot') {
+                <p class="form-note">{{ copy().resetSent }}</p>
+              }
+
+              <button
+                class="button button-primary"
+                type="submit"
+                [disabled]="isSubmitting() || !tokenValid()"
+              >
+                {{ submitLabel() }}
+              </button>
+
+              @if (mode() === 'login' && auth.googleConfigured()) {
+                <div class="alternative">
+                  <span>{{ language() === 'th' ? 'หรือ' : 'or' }}</span>
+                </div>
+                <a class="button button-secondary google-button" href="/api/auth/google">
+                  <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path
+                      fill="#4285F4"
+                      d="M19.6 10.23c0-.68-.06-1.36-.18-2.02H10v3.83h5.39a4.62 4.62 0 0 1-2 3.03v2.48h3.24c1.9-1.75 2.97-4.33 2.97-7.32Z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M10 20c2.7 0 4.96-.9 6.62-2.45l-3.24-2.48c-.9.6-2.05.96-3.38.96-2.6 0-4.8-1.75-5.58-4.1H1.08v2.55A10 10 0 0 0 10 20Z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M4.42 11.93a6 6 0 0 1 0-3.86V5.52H1.08a10 10 0 0 0 0 8.96l3.34-2.55Z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M10 3.97c1.47 0 2.79.5 3.82 1.5l2.86-2.87C14.95.98 12.7 0 10 0a10 10 0 0 0-8.92 5.52l3.34 2.55C5.2 5.72 7.4 3.97 10 3.97Z"
+                    />
+                  </svg>
+                  {{ copy().google }}
+                </a>
+              }
+
+              @if (mode() === 'login') {
+                <a class="forgot-link" href="/forgot-password">{{ copy().forgot }}</a>
+              } @else if (mode() !== 'confirm-email' || !tokenValid()) {
+                <a class="forgot-link" href="/">{{ copy().backToSignIn }}</a>
+              }
+            </form>
+          }
+        }
+
+        @if (!tokenValid()) {
+          <p class="feedback feedback-error" role="alert">{{ copy().invalidLink }}</p>
+        }
+        @if (error()) {
+          <p class="feedback feedback-error" role="alert">{{ error() }}</p>
+        }
+        @if (message()) {
+          <p class="feedback feedback-success" role="status">{{ message() }}</p>
+        }
+      </section>
+    </section>
+  }
+
+  <footer class="footer">
+    <span>© 2026 Nick</span>
+    <span>{{
+      language() === 'th' ? 'ออกแบบโดยคำนึงถึงความเป็นส่วนตัว' : 'Privacy by design'
+    }}</span>
+  </footer>
+</main>

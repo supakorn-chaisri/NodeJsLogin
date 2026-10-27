@@ -1,0 +1,39 @@
+{
+  "name": "@account-auth/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=../../.env dist/server.js",
+    "typecheck": "prisma generate && tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/lib/*.test.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "bootstrap-admin": "node --env-file-if-exists=../../.env --import tsx src/cli/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/swagger": "^9.9.2",
+    "@fastify/swagger-ui": "^6.1.2",
+    "@fastify/type-provider-typebox": "^6.3.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "@sinclair/typebox": "^0.34.52",
+    "argon2": "^0.45.1",
+    "fastify": "^5.12.7",
+    "nodemailer": "^10.2.1",
+    "openid-client": "^6.8.8",
+    "pg": "^8.23.1",
+    "prisma": "7.10.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/nodemailer": "^8.0.2",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}

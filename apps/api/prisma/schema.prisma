@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum TokenPurpose {
+  INVITATION
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+enum EmailJobKind {
+  INVITATION
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+enum EmailJobStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique @db.VarChar(320)
+  pendingEmail    String?      @unique @db.VarChar(320)
+  passwordHash    String?
+  role            UserRole     @default(USER)
+  status          UserStatus   @default(INVITED)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  sessions        Session[]
+  identities      Identity[]
+  tokens          OneTimeToken[]
+  emailJobs       EmailJob[]
+}
+
+model Session {
+  id                 String   @id @db.Char(64)
+  userId             String   @db.Uuid
+  createdAt          DateTime @default(now())
+  authenticatedAt    DateTime @default(now())
+  lastActivityAt     DateTime @default(now())
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Identity {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  provider   String   @db.VarChar(40)
+  subject    String   @db.VarChar(255)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+model OneTimeToken {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @db.Uuid
+  tokenHash   String      @unique @db.Char(64)
+  purpose     TokenPurpose
+  pendingEmail String?    @db.VarChar(320)
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, usedAt])
+  @@index([expiresAt])
+}
+
+model OAuthTransaction {
+  stateHash    String   @id @db.Char(64)
+  nonce        String   @db.VarChar(128)
+  codeVerifier String   @db.VarChar(128)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model RateLimitCounter {
+  key         String   @id @db.Char(64)
+  count       Int
+  windowStart DateTime
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  event        String   @db.VarChar(80)
+  actorUserId  String?  @db.Uuid
+  targetUserId String?  @db.Uuid
+  ipHash       String?  @db.Char(64)
+  createdAt    DateTime @default(now())
+  details      Json     @default("{}")
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+model EmailJob {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @db.Uuid
+  kind        EmailJobKind
+  status      EmailJobStatus @default(PENDING)
+  attempts    Int            @default(0)
+  availableAt DateTime       @default(now())
+  lockedAt    DateTime?
+  lastError   String?        @db.VarChar(500)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+}
